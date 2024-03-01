@@ -4,18 +4,18 @@ const {
   Mimetype,
   makeWASocket,
   useMultiFileAuthState,
-  DisconnectReason
+  DisconnectReason, generateForwardMessageContent, prepareWAMessageMedia, generateWAMessageFromContent, generateMessageID,makeInMemoryStore, downloadContentFromMessage, jidDecode, proto 
 } = require("@whiskeysockets/baileys");
 
 const fs = require("fs");
 const express = require("express");
 const app = express();
 const qrcode = require('qrcode-terminal');
-
+const keep_alive = require('./keep_alive.js')
 const math = require('mathjs');
 
 const ytdl = require('ytdl-core');
-
+const moment = require('moment-timezone');
 
 const JSDOM = require('jsdom');
 
@@ -388,27 +388,80 @@ async function connectToWhatsApp() {
           }
 
 
-        case '.author':
+case '!menu':
+    // Get the current time zone
+    const timeZone = moment.tz.guess();
 
-         var profile = 'http://prof.bimakhzdev.my.id';
+const menuText = `
+🤖 *MENU BOT WA* 🤖
 
-          sock.sendMessage(msg.key.remoteJid, {text: `*AUTHOR* \n *SECRETDISCORDER©* \n *myProfile*: ${profile} \n `}, {audio: {
+━━━━━━━━━━━━━━━━━━━━━
+1. *!virtex*       -> virtex generator
+2. *!quran*        -> Get Quran ayats
+3. *!.author*      -> Get author information
+4. *!calculate*    -> Perform calculations
+5. *!aritmatika*   -> Perform arithmetic operations
+6. *!sin*          -> Calculate sine
+7. *!cos*          -> Calculate cosine
+8. *!tan*          -> Calculate tangent
+9. *!pangkat*      -> Calculate exponentiation
+10. *!sqrt*        -> Calculate square root
+11. *!youtube*     -> Search videos on YouTube
+12. *!download*    -> Download files
+13. ~*!spam*       -> Spam infinity repeat~
+14. ~*!atur*       -> Spam Infinity~
+━━━━━━━━━━━━━━━━━━━━━
+`;
 
-                url: 'download.mp3', mimetype: 'audio/mp4'
+    // Get the current time in the specified time zone
+    const currentTime = moment().tz(timeZone).format('YYYY-MM-DD HH:mm:ss');
+    
+    const namabot = '*BIMBOT*';
+    const ppgroup = 'https://i.ibb.co/CtQfpSQ/139457966.jpg';
+    const profile = 'http://py.bimakharizdev.my.id \n https://bimakharizdev.my.id  \n http://bimakhzdev.my.id';
+    sock.sendMessage(msg.key.remoteJid, {
+        text: `${namabot} \n  *AUTHOR*  \n *SECRETDISCORDER©* \n ${currentTime} \n ${menuText} \n  *Profile*:  \n ${profile} \n `,
+        contextInfo: {
+            externalAdReply: { 
+                title: `${namabot}`,
+                body: `${currentTime}\n \n \n `,
+                thumbnailUrl: ppgroup,
+                sourceUrl: "https://youtube.com/BimaSeven",
+                mediaType: 1,
+                
+                renderLargerThumbnail: true 
+            }
+        }, 	
 
-          }
+	
+    });
+    
+    
+            const media = {
 
-              
+              "filename": `ura.mp3`
 
-                                                                                                                       });
+            };
 
-          break;
 
-         case '!menu':
 
-          sock.sendMessage(msg.key.remoteJid, { text: '*MENU BOT WA. !virtex !quran .author !calculate !aritmatika !sin !cos !tan !pangkat !sqrt !youtube !download !spam !spamV*' });
 
-          break;
+
+            media.filename = `${config.filename.mp3}.mp3`;
+
+            await sock.sendMessage(msg.key.remoteJid, {
+
+              audio: {
+
+                url: 'ura.mp3'
+
+              },
+
+              mimetype: 'audio/mp4'
+
+            });
+    break;
+
 
 
 
@@ -649,7 +702,7 @@ case '!youtube':
           break;
 
       }
-
+/*
       if (cmd === '!spam') {
         if (args.length != 3) {
           await sock.sendMessage(msg.key.remoteJid, {
@@ -686,7 +739,7 @@ case '!youtube':
               console.log(error)
             }
         }
-      }
+      }*/
     })
 
   } catch (error) {
