@@ -64,6 +64,10 @@ async function connectToWhatsApp() {
     sock.ev.on('messages.upsert', async ({ messages }) => {
 
       const msg = messages[0];
+      if (!msg || !msg.message || !msg.message.conversation) {
+	console.error("Invalid message format");
+	return;
+      }
       var abc = JSON.stringify(msg, undefined, 2);
       console.log(abc);
       const args = msg.message.conversation.split(' ');
