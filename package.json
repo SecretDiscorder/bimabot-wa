@@ -16,6 +16,7 @@
     "async": "^3.2.4",
     "asynckit": "^0.4.0",
     "atomic-sleep": "^1.0.0",
+    "moment-timezone": "^0.5.45",
     "audio-buffer": "^5.0.0",
     "audio-decode": "^2.1.5",
     "audio-type": "^2.2.1",
