@@ -6,8 +6,11 @@ const {
   useMultiFileAuthState,
   DisconnectReason, generateForwardMessageContent, prepareWAMessageMedia, generateWAMessageFromContent, generateMessageID,makeInMemoryStore, downloadContentFromMessage, jidDecode, proto 
 } = require("@whiskeysockets/baileys");
+const SpottyDL = require('spottydl')
+const ffmpeg = require('ffmpeg-static');
 
-const fs = require("fs");
+const fs = require('fs');
+const archiver = require('archiver');
 const express = require("express");
 const app = express();
 const qrcode = require('qrcode-terminal');
@@ -318,6 +321,98 @@ async function connectToWhatsApp() {
       }
 
       switch (cmd) {
+case '!spotify':
+const folderName = 'output';
+
+// Membuat folder
+fs.mkdir(folderName, (err) => {
+  if (err) {
+    console.error('Error creating folder:', err);
+    return;
+  }
+  console.log('Folder created successfully.');
+});
+    if (args.length !== 2) {
+		
+        sock.sendMessage(msg.key.remoteJid, { text: 'Format yang benar: !spotify [URL]' });
+        return;
+    } 
+
+    const spotifyUrl = args[1];
+
+    await sock.sendMessage(msg.key.remoteJid, {
+        text: '[⏳] Loading..'
+    });
+
+    SpottyDL.ffmpegPath = ffmpeg.path;
+
+    let playlist;
+    let res;
+
+    try {
+        playlist = await SpottyDL.getPlaylist(`${spotifyUrl}`);
+    } catch (error) {
+        console.error("Error:", error);
+        throw new Error("Unduhan gagal");
+    }
+
+    if (playlist && typeof playlist === "object") {
+        playlist = await SpottyDL.downloadPlaylist(playlist, "output/", false);
+        res = await SpottyDL.retryDownload(playlist);
+        
+        let maxRetries = 3; // Jumlah maksimum percobaan
+        let retries = 0; // Inisialisasi jumlah percobaan
+
+        while (res !== true && retries < maxRetries) {
+            retries++;
+            console.log(`Retry attempt ${retries}`);
+            res = await SpottyDL.retryDownload(res);
+        }
+
+        if (res !== true) {
+            console.error("Unduhan gagal setelah beberapa percobaan");
+            // Tidak perlu melemparkan error, cukup mencetak pesan
+        }
+    } else {
+        console.log("Response is not a valid object:", playlist);
+    }
+
+    const output = fs.createWriteStream('spotify.zip');
+    const archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+    });
+
+    // Menambahkan event listener untuk menangani penyelesaian unduhan
+    output.on('close', function () {
+        console.log('Folder has been zipped successfully!');
+        // Setelah proses arsip selesai, hapus folder 'output'
+        fs.rmdir('output', { recursive: true }, (err) => {
+            if (err) {
+                console.error('Error deleting folder:', err);
+            } else {
+                console.log('Folder "output" has been deleted.');
+            }
+        });
+    });
+
+    // Menambahkan event listener untuk menangani error saat melakukan arsip
+    archive.on('error', function (err) {
+        throw err;
+    });
+
+    archive.pipe(output);
+    archive.directory('output/', true);
+    archive.finalize();
+	const fileData = await fs.promises.readFile('spotify.zip')
+	await sock.sendMessage(msg.key.remoteJid, {
+
+      mimetype: 'application/zip',
+
+      document: fileData,
+	  filename: 'spotify.zip'
+
+    });
+    break;
 
           case '!virtex':
 
@@ -412,6 +507,7 @@ const menuText = `
 10. *!sqrt*        -> Calculate square root
 11. *!youtube*     -> Search videos on YouTube
 12. *!download*    -> Download files
+13. *!spotify*    -> Download Spotify Music
 13. ~*!spam*       -> Spam infinity repeat~
 14. ~*!atur*       -> Spam Infinity~
 ━━━━━━━━━━━━━━━━━━━━━
