@@ -7,7 +7,7 @@ Ensure you have the following installed:
 - [Node.js](https://nodejs.org/)
 - [NPM](https://www.npmjs.com/get-npm)
 - [Python](https://www.python.org/)
-
+- [FFMPEG](https://ffmpeg.org/download.html)
 ## Getting Started
 1. Clone the repository:
    ```bash
