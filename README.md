@@ -22,6 +22,8 @@ Ensure you have the following installed:
 3. Install dependencies:
    ```bash
    npm install
+
+   apt install ffmpeg
    ```
 
 4. Run the bot:
