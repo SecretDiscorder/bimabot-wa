@@ -256,91 +256,121 @@ async function connectToWhatsApp() {
 
             }
 
+            const outputDir = path.join(__dirname, 'output');
+            const rawOutput = path.join(outputDir, 'video_raw.webm');
+            const finalOutput = path.join(outputDir, 'video360.mp4');
+
+
+            function convertWebmToMp4(inputPath, outputPath) {
+                return new Promise((resolve, reject) => {
+                    const outputDir = path.dirname(outputPath);
+                    if (!fs.existsSync(outputDir)) {
+                        fs.mkdirSync(outputDir, {
+                            recursive: true
+                        });
+                    }
+
+                    const cmd = `"${ffmpeg}" -i "${inputPath}" -c:v libx264 -c:a aac -strict experimental "${outputPath}"`;
+                    exec(cmd, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error('❌ ffmpeg error:', stderr);
+                            reject(error);
+                        } else {
+                            resolve(outputPath);
+                        }
+                    });
+                });
+            }
+
 
             switch (cmd) {
-case '!spotify': {
-  if (args.length !== 2) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: 'Format yang benar: !spotify [URL]'
-    });
-    return;
-  }
+                case '!spotify': {
+                    if (args.length !== 2) {
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: 'Format yang benar: !spotify [URL]'
+                        });
+                        return;
+                    }
 
-  const spotifyUrl = args[1];
-  const outputDir = 'output';
-  const outputPath = path.join(outputDir, 'output.mp3');
+                    const spotifyUrl = args[1];
+                    const outputDir = 'output';
+                    const outputPath = path.join(outputDir, 'output.mp3');
 
-  try {
-    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-  } catch (err) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '❌ Tidak bisa akses folder output.'
-    });
-    return;
-  }
+                    try {
+                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, {
+                            recursive: true
+                        });
+                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+                    } catch (err) {
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: '❌ Tidak bisa akses folder output.'
+                        });
+                        return;
+                    }
 
-  await sock.sendMessage(msg.key.remoteJid, {
-    text: '[⏳] Mengunduh lagu dari Spotify...'
-  });
+                    await sock.sendMessage(msg.key.remoteJid, {
+                        text: '[⏳] Mengunduh lagu dari Spotify...'
+                    });
 
-  try {
-    const track = await SpottyDL.getTrack(spotifyUrl);
-    if (!track) throw new Error('Track tidak ditemukan.');
+                    try {
+                        const track = await SpottyDL.getTrack(spotifyUrl);
+                        if (!track) throw new Error('Track tidak ditemukan.');
 
-    const downloadedList = await SpottyDL.downloadTrack(track, outputDir, false);
-    console.log('📦 downloaded:', downloadedList);
+                        const downloadedList = await SpottyDL.downloadTrack(track, outputDir, false);
+                        console.log('📦 downloaded:', downloadedList);
 
-    if (!Array.isArray(downloadedList) || downloadedList.length === 0) {
-      throw new Error('Unduhan tidak mengembalikan file.');
-    }
+                        if (!Array.isArray(downloadedList) || downloadedList.length === 0) {
+                            throw new Error('Unduhan tidak mengembalikan file.');
+                        }
 
-    const firstFile = downloadedList[0];
-    if (!firstFile || !firstFile.filename) {
-      throw new Error('File tidak ditemukan di hasil unduhan.');
-    }
+                        const firstFile = downloadedList[0];
+                        if (!firstFile || !firstFile.filename) {
+                            throw new Error('File tidak ditemukan di hasil unduhan.');
+                        }
 
-    const originalPath = path.resolve(firstFile.filename);
-    if (!fs.existsSync(originalPath)) {
-      throw new Error('File hasil unduhan tidak ditemukan.');
-    }
+                        const originalPath = path.resolve(firstFile.filename);
+                        if (!fs.existsSync(originalPath)) {
+                            throw new Error('File hasil unduhan tidak ditemukan.');
+                        }
 
-    const stats = fs.statSync(originalPath);
-    if (!stats.isFile()) {
-      throw new Error('Hasil unduhan bukan file.');
-    }
+                        const stats = fs.statSync(originalPath);
+                        if (!stats.isFile()) {
+                            throw new Error('Hasil unduhan bukan file.');
+                        }
 
-    // Rename ke output/output.mp3 tanpa peduli nama asli
-    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-    fs.renameSync(originalPath, outputPath);
+                        // Rename ke output/output.mp3 tanpa peduli nama asli
+                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+                        fs.renameSync(originalPath, outputPath);
 
-    const sizeMB = fs.statSync(outputPath).size / (1024 * 1024);
-    if (sizeMB > 100) {
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: `⚠️ File terlalu besar (${sizeMB.toFixed(1)} MB), tidak dapat dikirim.`
-      });
-      return;
-    }
+                        const sizeMB = fs.statSync(outputPath).size / (1024 * 1024);
+                        if (sizeMB > 100) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: `⚠️ File terlalu besar (${sizeMB.toFixed(1)} MB), tidak dapat dikirim.`
+                            });
+                            return;
+                        }
 
-    await sock.sendMessage(msg.key.remoteJid, {
-      audio: { url: outputPath },
-      mimetype: 'audio/mp4',
-      fileName: 'output.mp3'
-    });
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            audio: {
+                                url: outputPath
+                            },
+                            mimetype: 'audio/mp4',
+                            fileName: 'output.mp3'
+                        });
 
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '✅ Lagu berhasil dikirim sebagai output.mp3'
-    });
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: '✅ Lagu berhasil dikirim sebagai output.mp3'
+                        });
 
-  } catch (err) {
-    console.error('❌ Error Spotify:', err);
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `❌ Gagal: ${err.message}`
-    });
-  }
+                    } catch (err) {
+                        console.error('❌ Error Spotify:', err);
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: `❌ Gagal: ${err.message}`
+                        });
+                    }
 
-  break;
-}
+                    break;
+                }
 
 
                 case '!virtex':
@@ -414,7 +444,7 @@ case '!spotify': {
                         });
 
                     }
-break;
+                    break;
 
                 case '!menu':
                     const timeZone = moment.tz.guess();
@@ -457,7 +487,7 @@ break;
                             }
                         }
                     });
-					contextFile = "./ura.mp3"; 
+                    contextFile = "./ura.mp3";
                     await sock.sendMessage(msg.key.remoteJid, {
                         audio: {
                             url: contextFile
@@ -469,6 +499,155 @@ break;
                     break;
 
 
+                    /*import fs from 'fs'
+                    import path from 'path'
+                    import { exec } from 'child_process'
+
+                    case '!gambar': {
+                      const prompt = text.slice(command.length).trim()
+                      if (!prompt) {
+                        await sock.sendMessage(from, { text: 'Tolong masukkan prompt setelah perintah !gambar' })
+                        break
+                      }
+
+                      await sock.sendMessage(from, { text: 'Sedang membuat gambar, mohon tunggu sebentar...' })
+
+                      generateImage(prompt, async (err, imagePath) => {
+                        if (err) {
+                          console.error('Generate image error:', err)
+                          await sock.sendMessage(from, { text: 'Gagal membuat gambar.' })
+                          return
+                        }
+
+                        try {
+                          const buffer = fs.readFileSync(imagePath)
+                          await sock.sendMessage(from, { image: buffer, caption: `Prompt: ${prompt}` })
+                        } catch (e) {
+                          console.error('Error membaca atau mengirim gambar:', e)
+                          await sock.sendMessage(from, { text: 'Gagal mengirim gambar.' })
+                        }
+                      })
+                      break
+                    }
+
+                    function generateImage(prompt, callback) {
+                      const sdFolder = 'C:/Users/User/stable-diffusion-webui'
+
+                      // Jalankan CLI python txt2img.py dari WebUI folder
+                      // --prompt "..." untuk text prompt
+                      // --n_samples 1 --n_iter 1 agar cuma buat 1 gambar
+                      // --plms untuk metode sampling cepat dan berkualitas
+                      const command = `python scripts/txt2img.py --prompt "${prompt.replace(/"/g, '\\"')}" --n_samples 1 --n_iter 1 --plms`
+
+                      exec(command, { cwd: sdFolder, windowsHide: true }, (error, stdout, stderr) => {
+                        if (error) {
+                          console.error('exec error:', error)
+                          return callback(error)
+                        }
+
+                        console.log('Stable Diffusion output:', stdout)
+                        if (stderr) console.error('Stable Diffusion stderr:', stderr)
+
+                        // Default output file stable diffusion txt2img biasanya:
+                        // {sdFolder}/outputs/txt2img-samples/sample.png
+                        const outputImagePath = path.join(sdFolder, 'outputs', 'txt2img-samples', 'sample.png')
+
+                        if (!fs.existsSync(outputImagePath)) {
+                          return callback(new Error('Gambar output tidak ditemukan di folder output'))
+                        }
+
+                        callback(null, outputImagePath)
+                      })
+                    }
+                    */
+                case '!downloadmp4':
+                    if (args.length !== 2) {
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: 'Format yang benar: !downloadmp4 [link_youtube]'
+                        });
+                        return;
+                    }
+
+                    const ytUrl = args[1];
+
+                    const outputDir = path.join(__dirname, 'output');
+                    const rawOutput = path.join(outputDir, 'video_raw.webm');
+                    const finalOutput = path.join(outputDir, 'video360.mp4');
+
+                    try {
+                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, {
+                            recursive: true
+                        });
+                        if (fs.existsSync(rawOutput)) fs.unlinkSync(rawOutput);
+                        if (fs.existsSync(finalOutput)) fs.unlinkSync(finalOutput);
+                    } catch (err) {
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: '❌ Gagal akses direktori output.'
+                        });
+                        return;
+                    }
+
+                    await sock.sendMessage(msg.key.remoteJid, {
+                        text: '[⏳] Mengunduh video 360p dari YouTube...'
+                    });
+
+                    try {
+                        const cmd = `"./yt-dlp.exe" -f "bestvideo[height<=360]+bestaudio/best[height<=360]" -o "${rawOutput}" "${ytUrl}"`;
+
+                        exec(cmd, async (error) => {
+                            if (error) {
+                                console.error('yt-dlp error:', error);
+                                await sock.sendMessage(msg.key.remoteJid, {
+                                    text: '❌ Gagal mengunduh video.'
+                                });
+                                return;
+                            }
+
+                            if (!fs.existsSync(rawOutput)) {
+                                await sock.sendMessage(msg.key.remoteJid, {
+                                    text: '❌ File tidak ditemukan setelah unduhan.'
+                                });
+                                return;
+                            }
+
+                            try {
+                                await convertWebmToMp4(rawOutput, finalOutput);
+
+                                const stats = fs.statSync(finalOutput);
+                                const sizeMB = stats.size / (1024 * 1024);
+
+                                if (sizeMB >= 100) {
+                                    await sock.sendMessage(msg.key.remoteJid, {
+                                        text: `⚠️ Ukuran file terlalu besar (${sizeMB.toFixed(2)}MB). Tidak dapat dikirim.`
+                                    });
+                                    return;
+                                }
+
+                                await sock.sendMessage(msg.key.remoteJid, {
+                                    video: {
+                                        url: finalOutput
+                                    },
+                                    mimetype: 'video/mp4',
+                                    fileName: 'video360.mp4',
+                                    caption: '✅ Video berhasil dikirim dalam format 360p.'
+                                });
+
+                            } catch (err) {
+                                console.error('ffmpeg error:', err);
+                                await sock.sendMessage(msg.key.remoteJid, {
+                                    text: '❌ Gagal mengonversi video ke .mp4'
+                                });
+                            }
+                        });
+
+                    } catch (err) {
+                        console.error(err);
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: `❌ Error saat proses: ${err.message}`
+                        });
+                    }
+
+                    break;
 
 
                 case '!calculate':
@@ -776,44 +955,44 @@ break;
                     break;
 
             }
-            
-                  if (cmd === '!spam') {
-                    if (args.length != 3) {
-                      await sock.sendMessage(msg.key.remoteJid, {
-                        text: 'Format yang benar !spam {string} [1]'
-                      });
-                    } else {
-                      const c = args[1];
-                      const b = parseInt(args[2]);
-                      while (b > 0) {
-                        try {
-                          await sock.sendMessage(msg.key.remoteJid, {
-                            text: c.repeat(b)
 
-                          })
-                        } catch (error) {
-                          console.log(error)
-                        }
-                      }
-                    }
-                  } else if (cmd === '!atur') {
-                   if (args.length != 3) {
-                      await sock.sendMessage(msg.key.remoteJid, {
+            if (cmd === '!spam') {
+                if (args.length != 3) {
+                    await sock.sendMessage(msg.key.remoteJid, {
                         text: 'Format yang benar !spam {string} [1]'
-                      });
-                    } else {
-                      const c = args[1];
-                      const b = parseInt(args[2]);
+                    });
+                } else {
+                    const c = args[1];
+                    const b = parseInt(args[2]);
+                    while (b > 0) {
                         try {
-                          await sock.sendMessage(msg.key.remoteJid, {
-                            text: c.repeat(b)
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: c.repeat(b)
 
-                          })
+                            })
                         } catch (error) {
-                          console.log(error)
+                            console.log(error)
                         }
                     }
-                  }
+                }
+            } else if (cmd === '!atur') {
+                if (args.length != 3) {
+                    await sock.sendMessage(msg.key.remoteJid, {
+                        text: 'Format yang benar !spam {string} [1]'
+                    });
+                } else {
+                    const c = args[1];
+                    const b = parseInt(args[2]);
+                    try {
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: c.repeat(b)
+
+                        })
+                    } catch (error) {
+                        console.log(error)
+                    }
+                }
+            }
         })
 
     } catch (error) {
