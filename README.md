@@ -4,7 +4,7 @@ This WhatsApp bot is built on the Baileys library and implemented using Node.js.
 
 ## Prerequisites
 Ensure you have the following installed:
-- [Node.js](https://nodejs.org/)
+- [Node.js v22](https://nodejs.org/)
 - [NPM](https://www.npmjs.com/get-npm)
 - [Python](https://www.python.org/)
 - [FFMPEG](https://ffmpeg.org/download.html)
