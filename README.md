@@ -1,38 +1,81 @@
-# bimabot-wa - WhatsApp Bot with Node.js and Baileys
+# 🤖 bimabot-wa
 
-This WhatsApp bot is built on the Baileys library and implemented using Node.js. Follow the steps below to set up and run the bimabot-wa:
+**bimabot-wa** adalah WhatsApp bot berbasis **Node.js** menggunakan library **Baileys**. Proyek ini dirancang untuk menjalankan bot WhatsApp sederhana dan bisa dikembangkan sesuai kebutuhan Anda.
 
-## Prerequisites
-Ensure you have the following installed:
-- [Node.js v22](https://nodejs.org/)
-- [NPM](https://www.npmjs.com/get-npm)
-- [Python](https://www.python.org/)
-- [FFMPEG](https://ffmpeg.org/download.html)
-## Getting Started
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/SecretDiscorder/bimabot-wa
-   ```
+---
 
-2. Navigate to the bimabot-wa directory:
-   ```bash
-   cd bimabot-wa
-   ```
+## 📦 Prasyarat
 
-3. Install dependencies:
-   ```bash
-   npm install
+Sebelum menjalankan proyek ini, pastikan Anda sudah menginstal:
 
-   apt install ffmpeg
-   ```
+* Node.js v22
+* npm
+* Python
+* FFMPEG
 
-4. Run the bot:
-   ```bash
-   node .
-   ```
+---
 
-## Additional Information
-- Ensure that you have the required dependencies installed using npm.
-- The bot is based on the Baileys library for WhatsApp, providing a foundation for WhatsApp bot functionality.
+## 🚀 Instalasi dan Menjalankan Bot
 
-Feel free to explore and customize the bimabot-wa as needed for your WhatsApp bot requirements.
+### 1. Clone repositori:
+
+```bash
+git clone https://github.com/SecretDiscorder/bimabot-wa
+```
+
+### 2. Masuk ke direktori:
+
+```bash
+cd bimabot-wa
+```
+
+### 3. Instal dependensi:
+
+```bash
+npm install
+```
+
+### 4. Instal ffmpeg (jika belum ada):
+
+```bash
+sudo apt install ffmpeg
+```
+
+### 5. Jalankan bot:
+
+```bash
+node .
+```
+
+---
+
+## 📁 Struktur File Penting
+
+* `index.js` — File utama bot
+* `config.json` — Konfigurasi dasar bot
+* `ayat.json` — Contoh data
+* `keep_alive.js` — Opsional untuk penggunaan di Replit
+* `yt-dlp.exe` — Untuk download video/audio
+* `ura.mp3`, `download.mp3`, `file.txt` — Contoh konten
+
+---
+
+## ℹ️ Informasi Tambahan
+
+* Bot ini berbasis [Baileys](https://github.com/whiskeysockets/Baileys).
+* Disarankan untuk menggunakan Node.js versi terbaru (v22+) untuk performa terbaik.
+* Anda bisa mengembangkan perintah (command) dan logika bot sesuai kebutuhan pribadi atau tim.
+
+---
+
+## 📜 Lisensi
+
+Lisensi: GPL-3.0
+
+---
+
+## 👤 Pengembang
+
+Project ini dibuat oleh [SecretDiscorder](https://github.com/SecretDiscorder).
+
+Jangan ragu untuk mengembangkan dan menyesuaikan bot ini sesuai dengan kebutuhan Anda. 🙌
