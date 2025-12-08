@@ -4,18 +4,19 @@
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "mathjs": "^15.1.0",
     "moment-timezone": "^0.6.0",
+    "pino": "^10.1.0",
     "qrcode-terminal": "^0.12.0"
   },
   "name": "bimabot-wa",
   "version": "1.0.0",
   "description": "**bimabot-wa** adalah WhatsApp bot VPS & Localhost berbasis **Node.js** menggunakan library **Baileys**. Proyek ini dirancang untuk menjalankan bot WhatsApp sederhana dengan start Localhost XAMPP terlebih dulu, dan bisa dikembangkan sesuai kebutuhan Anda.",
   "main": "index.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {}
 }

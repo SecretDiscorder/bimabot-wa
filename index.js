@@ -22,7 +22,7 @@ const math = require('mathjs');
 const moment = require('moment-timezone');
 const config = require('./config.json');
 var quranAyats = require('@kmaslesa/quran-ayats');
-
+					
 async function connectToWhatsApp() {
     try {
         const {
@@ -92,25 +92,17 @@ async function connectToWhatsApp() {
 
             const args = messageContent.trim().split(' ');
             const cmd = args[0];
-
+			const inputUnit = args[0].replace('--', '').toLowerCase();
+			const value = parseFloat(args[1]);
+			const targetUnit = args[3].replace('--to-', '').toLowerCase();
+			const a = parseFloat(args[1]);
             const cmdRegex = /^!quran\s*(\d+)\s*(\d+)?\s*(juz\s*(\d+))?$/i;
-
-
             const match = messageContent.match(cmdRegex);
-
-
             var abc = JSON.stringify(msg, undefined, 2);
             console.log(abc);
-
-
             const allAyats = quranAyats.getAllAyats();
-
             fs.writeFileSync('ayat.json', JSON.stringify(allAyats));
-
-
-
             // Fungsi sendQuranVerse diperbaiki
-
             async function sendQuranVerse(ayahNumber, surahNumber) {
                 try {
                     // Mendapatkan ayat Al-Quran berdasarkan nomor surah dan a
@@ -238,10 +230,6 @@ async function connectToWhatsApp() {
 						return;
 					}
 
-					const inputUnit = args[0].replace('--', '').toLowerCase();
-					const value = parseFloat(args[1]);
-					const targetUnit = args[3].replace('--to-', '').toLowerCase();
-
 					if (isNaN(value)) {
 						await sock.sendMessage(msg.key.remoteJid, {
 							text: 'Masukkan angka suhu yang valid.'
@@ -301,7 +289,6 @@ async function connectToWhatsApp() {
 						});
 						return;
 					}
-					const a = parseFloat(args[1]);
 					const b = parseFloat(args[2]);
 					if (isNaN(a) || isNaN(b) || b === 0) {
 						await sock.sendMessage(msg.key.remoteJid, {
@@ -339,10 +326,6 @@ async function connectToWhatsApp() {
 						giga: 1e9
 						// bisa ditambah satuan lain kalau perlu
 					};
-
-					const inputUnit = args[0].replace('--', '').toLowerCase();
-					const value = parseFloat(args[1]);
-					const targetUnit = args[3].replace('--to-', '').toLowerCase();
 
 					if (!(inputUnit in units) || !(targetUnit in units)) {
 						await sock.sendMessage(msg.key.remoteJid, {
@@ -644,8 +627,6 @@ async function connectToWhatsApp() {
                         return;
 
                     }
-
-                    const a = parseFloat(args[1]);
 
                     const n = parseFloat(args[2]);
 
