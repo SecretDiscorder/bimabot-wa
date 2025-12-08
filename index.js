@@ -1,3 +1,4 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 const {
     MessageType,
     MessageOptions,
@@ -16,22 +17,24 @@ const {
     proto
 } = require("@whiskeysockets/baileys");
 const SpottyDL = require('spottydl')
-const ffmpeg = require('ffmpeg-static');
-process.env.YTDL_NO_UPDATE = '1';
+const fs = require('fs');
+const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+const { Innertube } = require('youtubei.js');
+const https = require('https');
+ffmpeg.setFfmpegPath(ffmpegPath);
+
 const {
     exec
 } = require('child_process');
-const path = require('path');
 
-const fs = require('fs');
 const archiver = require('archiver');
 const express = require("express");
 const app = express();
 const qrcode = require('qrcode-terminal');
 const keep_alive = require('./keep_alive.js')
 const math = require('mathjs');
-
-const ytdl = require('ytdl-core');
 const moment = require('moment-timezone');
 
 const JSDOM = require('jsdom');
@@ -95,6 +98,7 @@ async function connectToWhatsApp() {
         }) => {
 
             const msg = messages[0];
+            const from = msg.key.remoteJid;
             if (!msg || !msg.message) return;
 
             // ⛔ Filter agar hanya respon ke chat pribadi (bukan grup)
@@ -191,70 +195,167 @@ async function connectToWhatsApp() {
                 }
 
             }
+            let ytInstance = null;
 
-            async function detailYouTube(url) {
-
-                await sock.sendMessage(msg.key.remoteJid, {
-
-                    text: '[⏳] Loading..'
-
-                });
-
-                try {
-
-                    let info = await ytdl.getInfo(url);
-
-                    let data = {
-
-                        channel: {
-
-                            name: info.videoDetails.author.name,
-
-                            user: info.videoDetails.author.user,
-
-                            channelUrl: info.videoDetails.author.channel_url,
-
-                            userUrl: info.videoDetails.author.user_url,
-
-                            verified: info.videoDetails.author.verified,
-
-                            subscriber: info.videoDetails.author.subscriber_count,
-
-                        },
-
-                        video: {
-
-                            title: info.videoDetails.title,
-
-                            description: info.videoDetails.description,
-
-                            lengthSeconds: info.videoDetails.lengthSeconds,
-
-                            videoUrl: info.videoDetails.video_url,
-
-                            publishDate: info.videoDetails.publishDate,
-
-                            viewCount: info.videoDetails.viewCount,
-
-                        },
-
-                    };
-
-                    await sock.sendMessage(msg.key.remoteJid, `*CHANNEL DETAILS*\n• Name : ${data.channel.name}\n• User : ${data.channel.user}\n• Verified : ${data.channel.verified}\n• Channel : ${data.channel.channelUrl}\n• Subscriber : ${data.channel.subscriber}`);
-
-                    await sock.sendMessage(msg.key.remoteJid, `*VIDEO DETAILS*\n• Title : ${data.video.title}\n• Seconds : ${data.video.lengthSeconds}\n• VideoURL : ${data.video.videoUrl}\n• Publish : ${data.video.publishDate}\n• Viewers : ${data.video.viewCount}`)
-
-                    await sock.sendMessage(msg.key.remoteJid, '*[✅]* Successfully!');
-
-                } catch (err) {
-
-                    console.log(err);
-
-                    await sock.sendMessage(msg.key.remoteJid, '*[❎]* Failed!');
-
-                }
-
+            async function getYT() {
+            if (!ytInstance) {
+                ytInstance = await Innertube.create();
             }
+            return ytInstance;
+            }
+
+            /**
+            * ================
+            * Download MP4
+            * ================
+            */
+            async function downloadMP4(videoId, outputFolder = "./downloads") {
+            const yt = await getYT();
+            const info = await yt.getInfo(videoId);
+
+            const format = info.streaming_data.formats
+                .filter(f => f.mime_type.includes("video/mp4"))
+                .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+            if (!format) throw new Error("Tidak ada format MP4!");
+
+            if (!fs.existsSync(outputFolder)) fs.mkdirSync(outputFolder, { recursive: true });
+
+            const outPath = path.join(outputFolder, `${videoId}.mp4`);
+
+            return new Promise((resolve, reject) => {
+                const file = fs.createWriteStream(outPath);
+
+                https.get(format.url, { rejectUnauthorized: false }, (res) => {
+                res.pipe(file);
+                file.on("finish", () => {
+                    file.close();
+                    resolve(outPath);
+                });
+                }).on("error", reject);
+            });
+            }
+
+            /**
+            * ================
+            * Download MP3
+            * ================
+            */
+            async function downloadMP3(videoId, outputFolder = "./downloads") {
+            const yt = await getYT();
+            const info = await yt.getInfo(videoId);
+
+            const audioFormat = info.streaming_data.adaptive_formats
+                .filter(f => f.mime_type.includes("audio/"))
+                .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+            if (!audioFormat) throw new Error("Tidak ada format audio!");
+
+            if (!fs.existsSync(outputFolder)) fs.mkdirSync(outputFolder, { recursive: true });
+
+            const tempPath = path.join(outputFolder, `${videoId}.m4a`);
+            const mp3Path = path.join(outputFolder, `${videoId}.mp3`);
+
+            // STEP 1 — Download raw audio
+            await new Promise((resolve, reject) => {
+                const file = fs.createWriteStream(tempPath);
+
+                https.get(audioFormat.url, { rejectUnauthorized: false }, (res) => {
+                res.pipe(file);
+                file.on('finish', () => {
+                    file.close();
+                    resolve();
+                });
+                }).on('error', reject);
+            });
+
+            // STEP 2 — Convert ke MP3
+            ffmpeg(tempPath)
+                .setFfmpegPath(ffmpegPath)
+                .audioCodec('libmp3lame')
+                .on('end', () => {
+                fs.unlinkSync(tempPath);
+                console.log(`Converted: ${mp3Path}`);
+                })
+                .on('error', (err) => {
+                throw err;
+                })
+                .save(mp3Path);
+
+            return mp3Path;
+            }
+
+            module.exports = {
+            downloadMP4,
+            downloadMP3
+            };
+			const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
+			async function detailYouTube(videoId) {
+			  try {
+				const yt = await getYT();
+				const info = await yt.getInfo(videoId);
+
+				// ───── METADATA VIDEO ─────
+				const video = info.basic_info;
+
+				const thumbnail =
+				  video.thumbnail?.[video.thumbnail.length - 1]?.url ||
+				  "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
+
+				// ───── VIDEO FORMATS ─────
+				const formats = info.streaming_data?.formats || [];
+				const adaptive = info.streaming_data?.adaptive_formats || [];
+
+				// MP4 360p
+				const mp4_360 = adaptive
+				  .filter(f => f.mime_type.includes("video/mp4") && f.height === 360)
+				  .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+				// MP4 720p
+				const mp4_720 = adaptive
+				  .filter(f => f.mime_type.includes("video/mp4") && f.height === 720)
+				  .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+				// Audio M4A
+				const audio = adaptive
+				  .filter(f => f.mime_type.includes("audio/mp4"))
+				  .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+				return {
+				  status: true,
+				  videoId,
+				  title: video.title,
+				  description: video.short_description || "",
+				  thumbnails: video.thumbnail,
+				  thumbnail,
+				  channel: video.author || "Unknown",
+				  published: video.publish_date,
+				  duration: video.duration,
+				  views: video.view_count,
+				  keywords: video.keywords || [],
+
+				  // ─── Streaming URLs ───
+				  url: {
+					mp4_360: mp4_360?.url || null,
+					mp4_720: mp4_720?.url || null,
+					audio: audio?.url || null
+				  },
+
+				  // ─── Info format ───
+				  formats: {
+					mp4_360: mp4_360 || null,
+					mp4_720: mp4_720 || null,
+					audio: audio || null,
+				  }
+				};
+
+			  } catch (e) {
+				return {
+				  status: false,
+				  error: e.message
+				};
+			  }
+			}
 
             const outputDir = path.join(__dirname, 'output');
             const rawOutput = path.join(outputDir, 'video_raw.webm');
@@ -466,11 +567,12 @@ async function connectToWhatsApp() {
 7. *!tan*          -> Calculate tangent
 8. *!pangkat*      -> Calculate exponentiation
 9. *!sqrt*        -> Calculate square root
-10. *!youtube*     -> Search videos on YouTube
-11. *!download*    -> Download files
-12. *!spotify*     -> Download Spotify Music
-13. ~*!spam*       -> Spam infinity repeat~
-14. ~*!atur*       -> Spam Infinity~
+10. *!youtube*     -> Search info videos on YouTube
+11. *!downloadmp4*    -> Download files video from Youtube
+12. *!downloadmp3*    -> Download files audio from Youtube
+13. *!spotify*     -> Download Spotify Music
+14. ~*!spam*       -> Spam infinity repeat~
+15. ~*!atur*       -> Spam Infinity~
 ━━━━━━━━━━━━━━━━━━
 `;
 
@@ -560,96 +662,116 @@ async function connectToWhatsApp() {
                       })
                     }
                     */
-                case '!downloadmp4':
-                    if (args.length !== 2) {
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: 'Format yang benar: !downloadmp4 [link_youtube]'
-                        });
-                        return;
-                    }
+                    case '!downloadmp4':
+                        if (args.length !== 2) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Format:\n!downloadmp4 https://youtube.com/xxxx'
+                            });
+                            return;
+                        }
 
-                    const ytUrl = args[1];
+                        try {
+                            const ytUrl = args[1];
+                            const match = ytRegex.exec(ytUrl);
+                            if (!match)
+                            return sock.sendMessage(msg.key.remoteJid, { text: "❌ Link YouTube tidak valid!" });
 
-                    const outputDir = path.join(__dirname, 'output');
-                    const rawOutput = path.join(outputDir, 'video_raw.webm');
-                    const finalOutput = path.join(outputDir, 'video360.mp4');
+                            const videoId = match[1];
 
-                    try {
-                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, {
-                            recursive: true
-                        });
-                        if (fs.existsSync(rawOutput)) fs.unlinkSync(rawOutput);
-                        if (fs.existsSync(finalOutput)) fs.unlinkSync(finalOutput);
-                    } catch (err) {
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: '❌ Gagal akses direktori output.'
-                        });
-                        return;
-                    }
-
-                    await sock.sendMessage(msg.key.remoteJid, {
-                        text: '[⏳] Mengunduh video 360p dari YouTube...'
-                    });
-
-                    try {
-                        const cmd = `"./yt-dlp.exe" -f "bestvideo[height<=360]+bestaudio/best[height<=360]" -o "${rawOutput}" "${ytUrl}"`;
-
-                        exec(cmd, async (error) => {
-                            if (error) {
-                                console.error('yt-dlp error:', error);
+                            if (!videoId) {
                                 await sock.sendMessage(msg.key.remoteJid, {
-                                    text: '❌ Gagal mengunduh video.'
+                                    text: '❌ Link YouTube tidak valid!'
                                 });
                                 return;
                             }
 
-                            if (!fs.existsSync(rawOutput)) {
+                            await sock.sendMessage(msg.key.remoteJid, { 
+                                text: '⏳ Mengunduh video, mohon tunggu...' 
+                            });
+
+                            const outPath = await downloadMP4(videoId);
+
+                            const stats = fs.statSync(outPath);
+                            const sizeMB = stats.size / (1024 * 1024);
+
+                            if (sizeMB >= 90) {
                                 await sock.sendMessage(msg.key.remoteJid, {
-                                    text: '❌ File tidak ditemukan setelah unduhan.'
+                                    text: `⚠️ Ukuran file terlalu besar (${sizeMB.toFixed(1)} MB).`
                                 });
                                 return;
                             }
 
-                            try {
-                                await convertWebmToMp4(rawOutput, finalOutput);
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                video: { url: outPath },
+                                mimetype: 'video/mp4',
+                                fileName: `${videoId}.mp4`,
+                                caption: '✅ Berhasil mengunduh video MP4!'
+                            });
 
-                                const stats = fs.statSync(finalOutput);
-                                const sizeMB = stats.size / (1024 * 1024);
+                        } catch (err) {
+                            console.error(err);
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: '❌ Gagal mengunduh video!'
+                            });
+                        }
 
-                                if (sizeMB >= 100) {
-                                    await sock.sendMessage(msg.key.remoteJid, {
-                                        text: `⚠️ Ukuran file terlalu besar (${sizeMB.toFixed(2)}MB). Tidak dapat dikirim.`
-                                    });
-                                    return;
-                                }
+                        break;
 
+                    case '!downloadmp3':
+                        if (args.length !== 2) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Format:\n!downloadmp3 https://youtube.com/xxxx'
+                            });
+                            return;
+                        }
+
+                        try {
+                            const ytUrl = args[1];
+                            const match = ytRegex.exec(ytUrl);
+                            if (!match)
+                            return sock.sendMessage(msg.key.remoteJid, { text: "❌ Link YouTube tidak valid!" });
+
+                            const videoId = match[1];
+
+                            if (!videoId) {
                                 await sock.sendMessage(msg.key.remoteJid, {
-                                    video: {
-                                        url: finalOutput
-                                    },
-                                    mimetype: 'video/mp4',
-                                    fileName: 'video360.mp4',
-                                    caption: '✅ Video berhasil dikirim dalam format 360p.'
+                                    text: '❌ Link YouTube tidak valid!'
                                 });
-
-                            } catch (err) {
-                                console.error('ffmpeg error:', err);
-                                await sock.sendMessage(msg.key.remoteJid, {
-                                    text: '❌ Gagal mengonversi video ke .mp4'
-                                });
+                                return;
                             }
-                        });
 
-                    } catch (err) {
-                        console.error(err);
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: `❌ Error saat proses: ${err.message}`
-                        });
-                    }
+                            await sock.sendMessage(msg.key.remoteJid, { 
+                                text: '⏳ Mengunduh audio, mohon tunggu...' 
+                            });
+
+                            const outPath = await downloadMP3(videoId);
+
+                            const stats = fs.statSync(outPath);
+                            const sizeMB = stats.size / (1024 * 1024);
+
+                            if (sizeMB >= 90) {
+                                await sock.sendMessage(msg.key.remoteJid, {
+                                    text: `⚠️ Ukuran file terlalu besar (${sizeMB.toFixed(1)} MB).`
+                                });
+                                return;
+                            }
+
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                audio: { url: outPath },
+                                mimetype: 'audio/mpeg',
+                                fileName: `${videoId}.mp3`,
+                                caption: '🎵 Audio berhasil dikirim!'
+                            });
+
+                        } catch (err) {
+                            console.error(err);
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: '❌ Gagal mengunduh audio!'
+                            });
+                        }
 
                     break;
-
-
+                        
                 case '!calculate':
 
                     const expression = args.slice(1).join(' ');
@@ -874,80 +996,40 @@ async function connectToWhatsApp() {
                     }
 
                     break;
-                    break;
+					case '!youtube': {
 
-                case '!youtube':
+						const url = args[1];
+						if (!url) return sock.sendMessage(msg.key.remoteJid, { text: "Format: !youtube <url>" });
 
-                    if (args.length !== 2) {
+						const match = ytRegex.exec(url);
+                        if (!match)
+                        return sock.sendMessage(msg.key.remoteJid, { text: "❌ Link YouTube tidak valid!" });
 
-                        sock.sendMessage(msg.key.remoteJid, {
-                            text: 'Format yang benar: !youtube [URL]'
-                        });
+                        const videoId = match[1];
 
-                        return;
+						const detail = await detailYouTube(videoId);
 
-                    }
+						if (!detail.status)
+						  return sock.sendMessage(msg.key.remoteJid, { text: "❌ Gagal mengambil data!" });
 
-                    const url = args[1];
+						const caption =
+					`📺 *${detail.title}*
+					👤 Channel: ${detail.channel}
+					👁️ Views: ${detail.views}
+					⏱ Duration: ${detail.duration}s
 
-                    await detailYouTube(url);
+					Pilih format download:
+					• *!downloadmp4 ${videoId}*
+					• *!downloadmp3 ${videoId}*
+					`;
 
-                    break;
-                case '!download': {
-                    const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-                    const tokens = fullText.trim().split(/\s+/);
-                    const ytUrl = tokens[1];
+						await sock.sendMessage(msg.key.remoteJid, {
+						  image: { url: detail.thumbnail },
+						  caption
+						});
 
-                    if (!ytUrl) {
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: 'Format: !download [YouTube URL]'
-                        });
-                        return;
-                    }
-
-                    const filename = 'output.mp3'; // hasil output file
-                    const ytdlpPath = path.join(__dirname, 'yt-dlp.exe');
-
-                    await sock.sendMessage(msg.key.remoteJid, {
-                        text: '[⏳] Mengunduh menggunakan yt-dlp...'
-                    });
-
-                    const command = `"${ytdlpPath}" -f bestaudio -o "${filename}" "${ytUrl}"`;
-
-                    exec(command, async (err, stdout, stderr) => {
-                        if (err) {
-                            console.error('❌ Error yt-dlp:', stderr || err);
-                            await sock.sendMessage(msg.key.remoteJid, {
-                                text: '❌ Gagal mengunduh dengan yt-dlp.'
-                            });
-                            return;
-                        }
-
-                        // Kirim hasil audio
-                        if (fs.existsSync(filename)) {
-                            await sock.sendMessage(msg.key.remoteJid, {
-                                audio: {
-                                    url: filename
-                                },
-                                mimetype: 'audio/mp4',
-                                fileName: 'YouTube_Download.mp3'
-                            });
-
-                            await sock.sendMessage(msg.key.remoteJid, {
-                                text: '✅ Berhasil mengunduh audio!'
-                            });
-
-                            fs.unlinkSync(filename);
-                        } else {
-                            await sock.sendMessage(msg.key.remoteJid, {
-                                text: '⚠️ File tidak ditemukan setelah proses selesai.'
-                            });
-                        }
-                    });
-
-                    break;
-                }
-
+					}
+					break;
 
 
                 default:
