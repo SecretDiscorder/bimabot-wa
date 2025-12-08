@@ -202,7 +202,7 @@ async function connectToWhatsApp() {
 					case '!menu':
 						const timeZone = moment.tz.guess();
 						const currentTime = moment().tz(timeZone).format('YYYY-MM-DD HH:mm:ss');
-						const namabot = '*BIMBOT*';
+						const namabot = '*MOONaBOT*';
 						const ppgroup = 'https://avatars.githubusercontent.com/u/139457966';
 						const profile = 'http://github.com/SecretDiscorder';
 						const menuText = `
@@ -921,3 +921,4 @@ async function connectToWhatsApp() {
 
 }
 connectToWhatsApp();
+
