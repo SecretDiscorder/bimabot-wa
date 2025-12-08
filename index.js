@@ -368,47 +368,45 @@ async function connectToWhatsApp() {
 							});
 						}
 						break;
+                    case '!modulo':
+                        if (args.length !== 3) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Format: !modulo [angka1] [angka2]'
+                            });
+                            return;
+                        }
+                        const num1 = parseFloat(args[1]);
+                        const num2 = parseFloat(args[2]);
+                        if (isNaN(num1) || isNaN(num2) || num2 === 0) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Masukkan angka valid dan pembagi tidak boleh 0.'
+                            });
+                            return;
+                        }
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: `Hasil: ${num1} % ${num2} = ${num1 % num2}`
+                        });
+                        break;
 
-					// !modulo
-					case '!modulo':
-						if (args.length !== 3) {
-							await sock.sendMessage(msg.key.remoteJid, {
-								text: 'Format: !modulo [angka1] [angka2]'
-							});
-							return;
-						}
-						const b = parseFloat(args[2]);
-						if (isNaN(a) || isNaN(b) || b === 0) {
-							await sock.sendMessage(msg.key.remoteJid, {
-								text: 'Masukkan angka valid dan pembagi tidak boleh 0.'
-							});
-							return;
-						}
-						await sock.sendMessage(msg.key.remoteJid, {
-							text: `Hasil: ${a} % ${b} = ${a % b}`
-						});
-						break;
-
-					// !floor
-					case '!floor':
-						if (args.length !== 2) {
-							await sock.sendMessage(msg.key.remoteJid, {
-								text: 'Format: !floor [angka]'
-							});
-							return;
-						}
-						const numFloor = parseFloat(args[1]);
-						if (isNaN(numFloor)) {
-							await sock.sendMessage(msg.key.remoteJid, {
-								text: 'Masukkan angka valid.'
-							});
-							return;
-						}
-						await sock.sendMessage(msg.key.remoteJid, {
-							text: `floor(${numFloor}) = ${Math.floor(numFloor)}`
-						});
-						break;
-
+                    // !floor
+                    case '!floor':
+                        if (args.length !== 2) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Format: !floor [angka]'
+                            });
+                            return;
+                        }
+                        const angkaFloor = parseFloat(args[1]);
+                        if (isNaN(angkaFloor)) {
+                            await sock.sendMessage(msg.key.remoteJid, {
+                                text: 'Masukkan angka valid.'
+                            });
+                            return;
+                        }
+                        await sock.sendMessage(msg.key.remoteJid, {
+                            text: `floor(${angkaFloor}) = ${Math.floor(angkaFloor)}`
+                        });
+                        break;
 					// !skala-peta
 					// Format: !skala-peta [jarak_peta_cm] [skala] → jarak nyata
 					// Contoh: !skala-peta 5 1:5000
@@ -921,4 +919,5 @@ async function connectToWhatsApp() {
 
 }
 connectToWhatsApp();
+
 
