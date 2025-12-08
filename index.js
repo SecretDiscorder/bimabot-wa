@@ -1,3 +1,8 @@
+process.env.HTTP_PROXY = "";
+process.env.HTTPS_PROXY = "";
+process.env.ALL_PROXY = "";
+process.env.NO_PROXY = "*";
+
 const {
     MessageType,
     MessageOptions,
@@ -225,7 +230,7 @@ async function connectToWhatsApp() {
             return new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(outPath);
 
-                https.get(format.url, { rejectUnauthorized: false }, (res) => {
+                https.get(format.url, (res) => {
                 res.pipe(file);
                 file.on("finish", () => {
                     file.close();
@@ -259,7 +264,7 @@ async function connectToWhatsApp() {
             await new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(tempPath);
 
-                https.get(audioFormat.url, { rejectUnauthorized: false }, (res) => {
+                https.get(audioFormat.url, (res) => {
                 res.pipe(file);
                 file.on('finish', () => {
                     file.close();
