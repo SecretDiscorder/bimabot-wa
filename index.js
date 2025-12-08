@@ -88,18 +88,22 @@ async function connectToWhatsApp() {
             if (!messageContent) {
                 console.error('❌ Tidak ada konten teks dalam pesan.');
                 return;
-            }
+            }const args = messageContent.trim().split(' ');
+						
+			const cmd = args[0];
 
-            const args = messageContent.trim().split(' ');
-            const cmd = args[0];
-			const inputUnit = args[0].replace('--', '').toLowerCase();
-			const value = parseFloat(args[1]);
-			const targetUnit = args[3].replace('--to-', '').toLowerCase();
-			const a = parseFloat(args[1]);
-            const cmdRegex = /^!quran\s*(\d+)\s*(\d+)?\s*(juz\s*(\d+))?$/i;
-            const match = messageContent.match(cmdRegex);
-            var abc = JSON.stringify(msg, undefined, 2);
-            console.log(abc);
+			// inputUnit tetap seperti semula
+
+
+			// regex quran tetap
+			const cmdRegex = /^!quran\s*(\d+)\s*(\d+)?\s*(juz\s*(\d+))?$/i;
+			const match = messageContent.match(cmdRegex);
+
+			// debug msg
+			var abc = JSON.stringify(msg, undefined, 2);
+			console.log(abc);
+
+
             const allAyats = quranAyats.getAllAyats();
             fs.writeFileSync('ayat.json', JSON.stringify(allAyats));
             // Fungsi sendQuranVerse diperbaiki
@@ -221,7 +225,59 @@ async function connectToWhatsApp() {
                     });
 
                     break;
-				
+
+				case '!satuan':
+					if (args.length !== 4) {
+						await sock.sendMessage(msg.key.remoteJid, {
+							text: 'Format: !satuan --[satuan_asal] [angka] --to-[satuan_tujuan]\nContoh: !satuan --cm 150 --to-m'
+						});
+						return;
+					}
+
+					// Variabel khusus untuk !satuan
+					const satuanInputUnit = args[1].replace('--', '').toLowerCase();
+					const satuanValue = parseFloat(args[2]);
+					const satuanTargetUnit = args[3].replace('--to-', '').toLowerCase();
+
+					const units = {
+						nano: 1e-9,
+						mikro: 1e-6,
+						mili: 1e-3,
+						cm: 1e-2,
+						dm: 1e-1,
+						m: 1,
+						km: 1e3,
+						inci: 0.0254,
+						kaki: 0.3048,
+						yard: 0.9144,
+						mil: 1609.344,
+						peta: 1e15,
+						tera: 1e12,
+						giga: 1e9
+					};
+
+					if (!(satuanInputUnit in units) || !(satuanTargetUnit in units)) {
+						await sock.sendMessage(msg.key.remoteJid, {
+							text: `Satuan tidak valid. Pilih dari: ${Object.keys(units).join(', ')}`
+						});
+						return;
+					}
+
+					if (isNaN(satuanValue)) {
+						await sock.sendMessage(msg.key.remoteJid, {
+							text: 'Masukkan angka valid.'
+						});
+						return;
+					}
+
+					const resultSatuan = satuanValue * units[satuanInputUnit] / units[satuanTargetUnit];
+
+					await sock.sendMessage(msg.key.remoteJid, {
+						text: `${satuanValue} ${satuanInputUnit} = ${resultSatuan} ${satuanTargetUnit}`
+					});
+					break;
+
+
 				case '!konversi-suhu':
 					if (args.length !== 4) {
 						await sock.sendMessage(msg.key.remoteJid, {
@@ -230,7 +286,12 @@ async function connectToWhatsApp() {
 						return;
 					}
 
-					if (isNaN(value)) {
+					// Variabel khusus untuk !konversi-suhu
+					const suhuInputUnit = args[1].replace('--', '').toLowerCase();
+					const suhuValue = parseFloat(args[2]);
+					const suhuTargetUnit = args[3].replace('--to-', '').toLowerCase();
+
+					if (isNaN(suhuValue)) {
 						await sock.sendMessage(msg.key.remoteJid, {
 							text: 'Masukkan angka suhu yang valid.'
 						});
@@ -240,7 +301,6 @@ async function connectToWhatsApp() {
 					function convertTemperature(value, from, to) {
 						let celcius;
 
-						// Konversi input ke Celcius dulu
 						switch (from) {
 							case 'celcius':
 								celcius = value;
@@ -258,7 +318,6 @@ async function connectToWhatsApp() {
 								throw new Error('Satuan asal tidak valid');
 						}
 
-						// Dari Celcius ke target
 						switch (to) {
 							case 'celcius': return celcius;
 							case 'fahrenheit': return celcius * 9 / 5 + 32;
@@ -270,9 +329,9 @@ async function connectToWhatsApp() {
 					}
 
 					try {
-						const result = convertTemperature(value, inputUnit, targetUnit);
+						const result = convertTemperature(suhuValue, suhuInputUnit, suhuTargetUnit);
 						await sock.sendMessage(msg.key.remoteJid, {
-							text: `${value} ${inputUnit} = ${result.toFixed(2)} ${targetUnit}`
+							text: `${suhuValue} ${suhuInputUnit} = ${result.toFixed(2)} ${suhuTargetUnit}`
 						});
 					} catch (err) {
 						await sock.sendMessage(msg.key.remoteJid, {
@@ -298,53 +357,6 @@ async function connectToWhatsApp() {
 					}
 					await sock.sendMessage(msg.key.remoteJid, {
 						text: `Hasil: ${a} % ${b} = ${a % b}`
-					});
-					break;
-
-				case '!satuan':
-					if (args.length !== 4) {
-						await sock.sendMessage(msg.key.remoteJid, {
-							text: 'Format: !satuan --[satuan_asal] [angka] --to-[satuan_tujuan]\nContoh: !satuan --cm 150 --to-m'
-						});
-						return;
-					}
-
-					const units = {
-						nano: 1e-9,
-						mikro: 1e-6,
-						mili: 1e-3,
-						cm: 1e-2,
-						dm: 1e-1,
-						m: 1,
-						km: 1e3,
-						inci: 0.0254,
-						kaki: 0.3048,
-						yard: 0.9144,
-						mil: 1609.344,
-						peta: 1e15,
-						tera: 1e12,
-						giga: 1e9
-						// bisa ditambah satuan lain kalau perlu
-					};
-
-					if (!(inputUnit in units) || !(targetUnit in units)) {
-						await sock.sendMessage(msg.key.remoteJid, {
-							text: `Satuan tidak valid. Pilih dari: ${Object.keys(units).join(', ')}`
-						});
-						return;
-					}
-
-					if (isNaN(value)) {
-						await sock.sendMessage(msg.key.remoteJid, {
-							text: 'Masukkan angka valid.'
-						});
-						return;
-					}
-
-					const resultSatuan = value * units[inputUnit] / units[targetUnit];
-
-					await sock.sendMessage(msg.key.remoteJid, {
-						text: `${value} ${inputUnit} = ${resultSatuan} ${targetUnit}`
 					});
 					break;
 
