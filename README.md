@@ -1,4 +1,4 @@
-# 🤖 bimabot-wa
+# 🤖 bimabot-wa (UNSTABLE)
 
 **bimabot-wa** adalah WhatsApp bot VPS & Localhost berbasis **Node.js** menggunakan library **Baileys**. Proyek ini dirancang untuk menjalankan bot WhatsApp sederhana dengan start Localhost XAMPP terlebih dulu, dan bisa dikembangkan sesuai kebutuhan Anda.
 
@@ -81,5 +81,6 @@ Lisensi: GPL-3.0
 Project ini dibuat oleh [SecretDiscorder](https://github.com/SecretDiscorder).
 
 Jangan ragu untuk mengembangkan dan menyesuaikan bot ini sesuai dengan kebutuhan Anda. 🙌
+
 
 
