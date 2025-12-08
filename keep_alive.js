@@ -1,5 +1,11 @@
 const http = require('http');
-
+// ======== AUTO UNSET PROXY VARIABEL ========= //
+delete process.env.HTTP_PROXY;
+delete process.env.HTTPS_PROXY;
+delete process.env.http_proxy;
+delete process.env.https_proxy;
+delete process.env.ALL_PROXY;
+delete process.env.all_proxy;
 const PORT = process.env.PORT || 8080;
 
 function htmlPage() {

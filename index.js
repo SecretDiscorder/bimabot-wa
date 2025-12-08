@@ -1,7 +1,8 @@
-process.env.HTTP_PROXY = "";
-process.env.HTTPS_PROXY = "";
-process.env.ALL_PROXY = "";
-process.env.NO_PROXY = "*";
+process.env.HTTP_PROXY = '';
+process.env.HTTPS_PROXY = '';
+process.env.http_proxy = '';
+process.env.https_proxy = '';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const {
     MessageType,
@@ -20,13 +21,17 @@ const {
     jidDecode,
     proto
 } = require("@whiskeysockets/baileys");
-const SpottyDL = require('spottydl')
+const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:(?:watch\?(?:.*&)?v=)|(?:shorts\/)|(?:embed\/)|(?:v\/)|(?:live\/))|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
+
 const fs = require('fs');
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const { Innertube } = require('youtubei.js');
+
 const https = require('https');
+// di bagian atas file
+
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const {
@@ -106,8 +111,8 @@ async function connectToWhatsApp() {
             if (!msg || !msg.message) return;
 
             // ⛔ Filter agar hanya respon ke chat pribadi (bukan grup)
-            const isGroup = msg.key.remoteJid.endsWith('@g.us');
-            if (isGroup) return;
+            // const isGroup = msg.key.remoteJid.endsWith('@g.us');
+            // if (isGroup) return;
 
 
             // Tangani berbagai tipe isi pesan
@@ -199,11 +204,30 @@ async function connectToWhatsApp() {
                 }
 
             }
+			
+			
+			const outputDir = path.join(__dirname, 'output');
+
+			async function downloadSpotify(url) {
+				return new Promise((resolve, reject) => {
+					const cmd = `spotifydl ${url} --o "${outputDir}" --oo`;
+					exec(cmd, (err, stdout, stderr) => {
+						if (err) return reject(stderr || err);
+						resolve(stdout);
+					});
+				});
+			}
+
+			
             let ytInstance = null;
 
             async function getYT() {
             if (!ytInstance) {
-                ytInstance = await Innertube.create();
+				ytInstance = await Innertube.create({
+					fetchOptions: {
+						agent: undefined
+					}
+				});
             }
             return ytInstance;
             }
@@ -230,7 +254,7 @@ async function connectToWhatsApp() {
             return new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(outPath);
 
-                https.get(format.url, (res) => {
+                https.get(format.url, { rejectUnauthorized: false }, (res) => {
                 res.pipe(file);
                 file.on("finish", () => {
                     file.close();
@@ -249,9 +273,11 @@ async function connectToWhatsApp() {
             const yt = await getYT();
             const info = await yt.getInfo(videoId);
 
-            const audioFormat = info.streaming_data.adaptive_formats
-                .filter(f => f.mime_type.includes("audio/"))
-                .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+            const audioFormats = info.adaptive_formats || info.formats || [];
+			const audio = audioFormats.find(f => f.mime_type && f.mime_type.includes("audio/mp4"));
+
+			if (!audio || !audio.url) throw new Error("Audio stream tidak ditemukan!");
+
 
             if (!audioFormat) throw new Error("Tidak ada format audio!");
 
@@ -264,7 +290,7 @@ async function connectToWhatsApp() {
             await new Promise((resolve, reject) => {
                 const file = fs.createWriteStream(tempPath);
 
-                https.get(audioFormat.url, (res) => {
+                https.get(audioFormat.url, { rejectUnauthorized: false }, (res) => {
                 res.pipe(file);
                 file.on('finish', () => {
                     file.close();
@@ -293,7 +319,6 @@ async function connectToWhatsApp() {
             downloadMP4,
             downloadMP3
             };
-			const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
 			async function detailYouTube(videoId) {
 			  try {
 				const yt = await getYT();
@@ -361,7 +386,6 @@ async function connectToWhatsApp() {
 			  }
 			}
 
-            const outputDir = path.join(__dirname, 'output');
             const rawOutput = path.join(outputDir, 'video_raw.webm');
             const finalOutput = path.join(outputDir, 'video360.mp4');
 
@@ -387,95 +411,44 @@ async function connectToWhatsApp() {
                 });
             }
 
-
             switch (cmd) {
-                case '!spotify': {
-                    if (args.length !== 2) {
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: 'Format yang benar: !spotify [URL]'
-                        });
-                        return;
-                    }
+				
+				case '!spotify': {
+					if (args.length !== 2) {
+						await sock.sendMessage(msg.key.remoteJid, { text: 'Format: !spotify [URL Spotify]' });
+						return;
+					}
 
-                    const spotifyUrl = args[1];
-                    const outputDir = 'output';
-                    const outputPath = path.join(outputDir, 'output.mp3');
+					const spotifyUrl = args[1];
 
-                    try {
-                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, {
-                            recursive: true
-                        });
-                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-                    } catch (err) {
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: '❌ Tidak bisa akses folder output.'
-                        });
-                        return;
-                    }
+					await sock.sendMessage(msg.key.remoteJid, { text: '⏳ Mengambil dan mendownload audio dari Spotify...' });
 
-                    await sock.sendMessage(msg.key.remoteJid, {
-                        text: '[⏳] Mengunduh lagu dari Spotify...'
-                    });
+					try {
+						const result = await downloadSpotify(spotifyUrl);
+						console.log(result); // bisa parsing stdout untuk ambil nama file terakhir
 
-                    try {
-                        const track = await SpottyDL.getTrack(spotifyUrl);
-                        if (!track) throw new Error('Track tidak ditemukan.');
+						// kirim audio ke WhatsApp (ambil file terakhir dari outputDir)
+						const fs = require('fs');
+						const files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
+						const latestFile = path.join(outputDir, files.sort((a,b) => fs.statSync(path.join(outputDir,b)).mtimeMs - fs.statSync(path.join(outputDir,a)).mtimeMs)[0]);
 
-                        const downloadedList = await SpottyDL.downloadTrack(track, outputDir, false);
-                        console.log('📦 downloaded:', downloadedList);
+						if (!latestFile) throw new Error('File audio tidak ditemukan!');
 
-                        if (!Array.isArray(downloadedList) || downloadedList.length === 0) {
-                            throw new Error('Unduhan tidak mengembalikan file.');
-                        }
+						await sock.sendMessage(msg.key.remoteJid, {
+							audio: { url: latestFile },
+							mimetype: 'audio/mp4',
+							fileName: path.basename(latestFile)
+						});
 
-                        const firstFile = downloadedList[0];
-                        if (!firstFile || !firstFile.filename) {
-                            throw new Error('File tidak ditemukan di hasil unduhan.');
-                        }
+						await sock.sendMessage(msg.key.remoteJid, { text: `✅ Berhasil mengirim audio: ${path.basename(latestFile)}` });
 
-                        const originalPath = path.resolve(firstFile.filename);
-                        if (!fs.existsSync(originalPath)) {
-                            throw new Error('File hasil unduhan tidak ditemukan.');
-                        }
+					} catch (err) {
+						console.error('❌ Error Spotify:', err);
+						await sock.sendMessage(msg.key.remoteJid, { text: `❌ Gagal: ${err.message}` });
+					}
 
-                        const stats = fs.statSync(originalPath);
-                        if (!stats.isFile()) {
-                            throw new Error('Hasil unduhan bukan file.');
-                        }
-
-                        // Rename ke output/output.mp3 tanpa peduli nama asli
-                        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-                        fs.renameSync(originalPath, outputPath);
-
-                        const sizeMB = fs.statSync(outputPath).size / (1024 * 1024);
-                        if (sizeMB > 100) {
-                            await sock.sendMessage(msg.key.remoteJid, {
-                                text: `⚠️ File terlalu besar (${sizeMB.toFixed(1)} MB), tidak dapat dikirim.`
-                            });
-                            return;
-                        }
-
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            audio: {
-                                url: outputPath
-                            },
-                            mimetype: 'audio/mp4',
-                            fileName: 'output.mp3'
-                        });
-
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: '✅ Lagu berhasil dikirim sebagai output.mp3'
-                        });
-
-                    } catch (err) {
-                        console.error('❌ Error Spotify:', err);
-                        await sock.sendMessage(msg.key.remoteJid, {
-                            text: `❌ Gagal: ${err.message}`
-                        });
-                    }
-
-                    break;
-                }
+					break;
+				}
 
 
                 case '!virtex':
@@ -775,6 +748,7 @@ async function connectToWhatsApp() {
                         }
 
                     break;
+                        
                         
                 case '!calculate':
 
