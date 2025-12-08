@@ -1,6 +1,6 @@
 # 🤖 bimabot-wa
 
-**bimabot-wa** adalah WhatsApp bot berbasis **Node.js** menggunakan library **Baileys**. Proyek ini dirancang untuk menjalankan bot WhatsApp sederhana dan bisa dikembangkan sesuai kebutuhan Anda.
+**bimabot-wa** adalah WhatsApp bot berbasis **Node.js** menggunakan library **Baileys**. Proyek ini dirancang untuk menjalankan bot WhatsApp sederhana dengan start Localhost XAMPP terlebih dulu, dan bisa dikembangkan sesuai kebutuhan Anda.
 
 ---
 
@@ -12,6 +12,7 @@ Sebelum menjalankan proyek ini, pastikan Anda sudah menginstal:
 * npm
 * Python
 * FFMPEG
+* XAMPP Akses Port 443
 
 ---
 
@@ -47,6 +48,7 @@ sudo apt install ffmpeg
 node .
 ```
 
+### 6. Start Apache Server Localohost di XAMPP Control Panel.
 ---
 
 ## 📁 Struktur File Penting
@@ -79,3 +81,4 @@ Lisensi: GPL-3.0
 Project ini dibuat oleh [SecretDiscorder](https://github.com/SecretDiscorder).
 
 Jangan ragu untuk mengembangkan dan menyesuaikan bot ini sesuai dengan kebutuhan Anda. 🙌
+
