@@ -75,7 +75,7 @@ function htmlPage() {
   // Auto refresh setiap 15 menit
   setInterval(() => {
     location.reload();
-  }, 900000);
+  }, 10000);
 </script>
 
 </body>
@@ -90,3 +90,4 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
     console.log(`Server Alive`);
 });
+
